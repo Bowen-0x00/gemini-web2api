@@ -315,6 +315,8 @@ async def browser_error(request: Request):
     tab_id = data.get("tab_id")
     req_id = data.get("request_id")
     message = data.get("message", "Unknown error from browser")
+    error_type = data.get("error_type", "insufficient_quota" if ("配额" in message or "quota" in message.lower()) else "api_error")
+    code = data.get("code", "insufficient_quota" if error_type == "insufficient_quota" else "internal_error")
 
     tab = ws_manager.tabs.get(tab_id)
     if tab:
@@ -324,7 +326,9 @@ async def browser_error(request: Request):
         await ws_manager.active_requests[req_id].put({
             "type": "error",
             "request_id": req_id,
-            "message": message
+            "message": message,
+            "error_type": error_type,
+            "code": code,
         })
     return {"status": "ok"}
 
@@ -523,10 +527,18 @@ async def generate_sse_stream(
 
             elif msg_type == "error":
                 err_msg = msg.get("message", "Unknown error from browser bridge")
+                err_type = msg.get("error_type", "insufficient_quota" if ("配额" in err_msg or "quota" in err_msg.lower()) else "api_error")
+                err_code = msg.get("code", "insufficient_quota" if err_type == "insufficient_quota" else "internal_error")
                 logger.error(f"Error from browser: {err_msg}")
-                yield f"data: {json.dumps({'error': {'message': err_msg}})}\n\n"
+                err_payload = {
+                    "error": {
+                        "message": err_msg,
+                        "type": err_type,
+                        "code": err_code,
+                    }
+                }
+                yield f"data: {json.dumps(err_payload, ensure_ascii=False)}\n\n"
                 finished = True
-
         yield "data: [DONE]\n\n"
 
     finally:
@@ -633,8 +645,9 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
                         if ev.event_type == "content":
                             accumulated_content.append(ev.content)
                 elif msg_type == "error":
-                    raise HTTPException(status_code=500, detail=msg.get("message", "Error from browser"))
-
+                    err_msg = msg.get("message", "Error from browser")
+                    status_code = 429 if ("配额" in err_msg or "quota" in err_msg.lower()) else 500
+                    raise HTTPException(status_code=status_code, detail=err_msg)
             full_text = "".join(accumulated_content)
             tool_calls = parser.parsed_tool_calls if parser.parsed_tool_calls else None
             finish_reason = "tool_calls" if tool_calls else "stop"
@@ -829,9 +842,9 @@ async def generate_anthropic_sse_stream(
 
             elif msg_type == "error":
                 err_msg = msg.get("message", "Error from browser")
-                yield f"event: error\ndata: {json.dumps({'type': 'error', 'error': {'type': 'api_error', 'message': err_msg}})}\n\n"
+                err_type = "rate_limit_error" if ("配额" in err_msg or "quota" in err_msg.lower()) else "api_error"
+                yield f"event: error\ndata: {json.dumps({'type': 'error', 'error': {'type': err_type, 'message': err_msg}}, ensure_ascii=False)}\n\n"
                 finished = True
-
     finally:
         ws_manager.cleanup_request(req_id)
 

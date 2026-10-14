@@ -654,10 +654,40 @@
     updateUI("connected", "Bridge: Connected (Idle)");
     currentRequestId = null;
   }
+  function checkModelQuota() {
+    const items = Array.from(document.querySelectorAll("gem-menu-item, [role='menuitem'], [role='option'], button"));
+    const target = items.find(el => el.textContent.includes('4 Argon') || el.textContent.includes('Argon'));
+    if (target) {
+      const text = (target.innerText || target.textContent || '').trim();
+      const isDisabled = target.getAttribute('aria-disabled') === 'true' || target.className.includes('disabled');
+      if (isDisabled && (text.includes('用量限额') || text.includes('限额重置') || text.includes('重置时间') || text.includes('reset') || text.includes('quota') || text.includes('limit'))) {
+        return text.replace(/\n/g, ' ');
+      }
+    }
+    return null;
+  }
+
 
   async function handleChatRequest(data) {
     const { request_id, text, need_reset, thinking_level } = data;
     enableBackgroundKeepAlive();
+    const quotaMsg = checkModelQuota();
+    if (quotaMsg) {
+      const errText = `Gemini 4 Argon 配额已耗尽 (${quotaMsg})`;
+      logToServer(errText);
+      try {
+        await httpPost(`${baseUrl}/browser/error`, {
+          tab_id: tabId,
+          request_id: request_id,
+          error_type: "insufficient_quota",
+          code: "insufficient_quota",
+          message: errText
+        });
+      } catch (_) {}
+      updateUI("busy", "Bridge: Quota Limit Hit");
+      return;
+    }
+
     try {
       if (thinking_level) {
         await setThinkingLevel(thinking_level);

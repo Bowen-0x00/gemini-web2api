@@ -252,6 +252,45 @@ class ChromeDriverBridge:
             time.sleep(0.5)
         except Exception as e:
             logger.warning(f"Error ensuring model '{model_name}': {e}")
+    def check_model_quota(self) -> Optional[str]:
+        """Check if target Argon model has hit quota/usage limits, returning reset message if exhausted."""
+        script = r"""
+        const done = arguments[arguments.length - 1];
+        function inspectItems() {
+            const items = Array.from(document.querySelectorAll("gem-menu-item, [role='menuitem'], [role='option'], button"));
+            const target = items.find(el => el.textContent.includes('4 Argon') || el.textContent.includes('Argon'));
+            if (target) {
+                const text = (target.innerText || target.textContent || '').trim();
+                const isDisabled = target.getAttribute('aria-disabled') === 'true' || target.className.includes('disabled');
+                if (isDisabled && (text.includes('用量限额') || text.includes('限额重置') || text.includes('重置时间') || text.includes('reset') || text.includes('quota') || text.includes('limit'))) {
+                    return text.replace(/\n/g, ' ');
+                }
+            }
+            return null;
+        }
+
+        let items = document.querySelectorAll("gem-menu-item");
+        if (items.length > 0) {
+            return done(inspectItems());
+        }
+
+        const picker = document.querySelector("[aria-label*='mode picker' i], [aria-label*='模式选择器'], .input-area-switch");
+        if (picker) {
+            picker.click();
+            setTimeout(() => {
+                const res = inspectItems();
+                picker.click();
+                done(res);
+            }, 300);
+        } else {
+            done(null);
+        }
+        """
+        try:
+            return self.driver.execute_async_script(script)
+        except Exception:
+            return None
+
 
     def trigger_new_chat(self):
         """Reset conversation by navigating or clicking new chat."""
@@ -415,6 +454,27 @@ class ChromeDriverBridge:
             prior_count = 0
         else:
             prior_count = self.get_message_count()
+
+        if "argon" in self.preferred_model.lower():
+            quota_err = self.check_model_quota()
+            if quota_err:
+                err_msg = f"Gemini 4 Argon 配额已耗尽 ({quota_err})"
+                logger.warning(err_msg)
+                try:
+                    self.session.post(
+                        f"{self.server_url}/browser/error",
+                        json={
+                            "tab_id": self.tab_id,
+                            "request_id": req_id,
+                            "error_type": "insufficient_quota",
+                            "code": "insufficient_quota",
+                            "message": err_msg,
+                        },
+                        timeout=5.0,
+                    )
+                except Exception:
+                    pass
+                return
 
         self.ensure_model(self.preferred_model, thinking_level=thinking_level)
 
