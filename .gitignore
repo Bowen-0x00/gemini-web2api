@@ -41,3 +41,7 @@ Thumbs.db
 
 # Temporary test artifacts
 .pytest_cache/
+
+# ChromeDriver binary
+drivers/
+*.exe

@@ -230,11 +230,11 @@ python3 -m unittest tests/test_e2e.py
 
 当前油猴脚本方案具有极佳的免登录与零风控优势。为了实现更彻底的“无人值守、静默后台运行”，后续版本将引入 **Chrome DevTools Protocol (CDP)** 原生驱动后端作为另一种可选运行模式：
 
-- [ ] **CDP 原生驱动后端（TODO）：**
-  - 通过 `chrome.exe --remote-debugging-port=9222` 连接已登录的 Chrome 实例。
-  - 通过 CDP 协议直接操作页面 DOM、键盘输入与网络请求，无需油猴插件。
-  - **完全脱离窗口约束：** 支持窗口彻底最小化、置底，甚至以全新 `--headless=new` 模式静默运行在后台系统服务中。
-  - **硬件级输入模拟：** 采用 CDP `Input.dispatchKeyEvent` 模拟底层键盘硬件扫描码。
+- [x] **CDP / ChromeDriver 原生驱动后端（已实现）：**
+  - 支持通过 `chrome.exe --remote-debugging-port=9222` 连接已登录的 Chrome 实例，或通过 `--user-data-dir` 独立持久化运行。
+  - 通过 CDP 与 DOM 协议直接操作页面输入与网络流式回调，无需油猴插件。
+  - **完全脱离窗口约束：** 原生支持窗口彻底最小化（Minimized）、被其他窗口遮挡（Occluded）或后台运行，通过内置静音音频 Keep-Alive 与针对性 Chromium 参数免除后台休眠与定时器节流。
+  - 运行指令：`python run_server.py --driver` 或 `python run_chromedriver.py`。
 - [ ] **多 Tab 并发请求路由池：** 支持在浏览器中自动开启多个标签页，实现并发请求的自动负载均衡。
 - [ ] **CLI Agent 专用扩展插件：** 作为 Oh My Pi 的独立 extension 发布，支持在终端输入 `/gemini-bridge` 一键启动与诊断。
 

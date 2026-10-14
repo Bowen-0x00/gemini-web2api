@@ -229,11 +229,11 @@ Test coverage:
 
 While the Tampermonkey architecture provides zero-friction authentication and maximum anti-bot resilience, future releases will introduce a **Chrome DevTools Protocol (CDP)** backend as an alternative execution mode:
 
-- [ ] **Native CDP Headless Backend (TODO):**
-  - Attach directly to existing Chrome profiles via `chrome.exe --remote-debugging-port=9222`.
-  - Drive DOM, keyboard inputs, and network events directly at the Chromium engine level.
-  - **Complete Window Decoupling:** Fully supports running minimized, hidden, or in `--headless=new` mode as a headless system daemon.
-  - **Hardware-Level Input:** Uses `Input.dispatchKeyEvent` to simulate raw hardware scan codes.
+- [x] **Native CDP / ChromeDriver Driver Backend (Implemented):**
+  - Attach directly to existing Chrome profiles via `chrome.exe --remote-debugging-port=9222`, or launch dedicated profiles via `--user-data-dir`.
+  - Drive DOM, keyboard inputs, and streaming responses directly via CDP and DOM bridge without Tampermonkey.
+  - **Complete Window Decoupling:** Fully supports running minimized, occluded, or in `--headless=new` mode, leveraging silent Web Audio keep-alive and anti-throttling flags.
+  - Execution commands: `python run_server.py --driver` or `python run_chromedriver.py`.
 - [ ] **Multi-Tab Concurrency Pool:** Automatic tab management for concurrent load-balanced request processing.
 - [ ] **Native Oh My Pi Extension:** Package as an official OMP extension with a `/gemini-bridge` terminal dashboard command.
 

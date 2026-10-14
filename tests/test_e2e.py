@@ -1,4 +1,7 @@
 """End-to-end integration test for the Gemini Web2API proxy server."""
+import os
+os.environ["NO_PROXY"] = "localhost,127.0.0.1"
+os.environ["no_proxy"] = "localhost,127.0.0.1"
 
 import asyncio
 import json
@@ -25,7 +28,7 @@ class E2ETest(unittest.IsolatedAsyncioTestCase):
         # Wait for server ready
         for _ in range(50):
             try:
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(trust_env=False) as client:
                     r = await client.get(f"{BASE_URL}/v1/models")
                     if r.status_code == 200:
                         break
@@ -45,7 +48,7 @@ class E2ETest(unittest.IsolatedAsyncioTestCase):
 
     async def test_01_models_endpoint(self):
         """Test GET /v1/models returns model list."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(trust_env=False) as client:
             resp = await client.get(f"{BASE_URL}/v1/models")
             self.assertEqual(resp.status_code, 200)
             data = resp.json()
@@ -66,7 +69,7 @@ class E2ETest(unittest.IsolatedAsyncioTestCase):
         collected_content = []
         finish_reason = None
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
             async with client.stream("POST", f"{BASE_URL}/v1/chat/completions", json=payload) as resp:
                 self.assertEqual(resp.status_code, 200)
                 async for line in resp.aiter_lines():
@@ -112,7 +115,7 @@ class E2ETest(unittest.IsolatedAsyncioTestCase):
         }
 
         tool_calls = []
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
             async with client.stream("POST", f"{BASE_URL}/v1/chat/completions", json=payload) as resp:
                 self.assertEqual(resp.status_code, 200)
                 async for line in resp.aiter_lines():
@@ -149,7 +152,7 @@ class E2ETest(unittest.IsolatedAsyncioTestCase):
         }
 
         turn2_content = []
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
             async with client.stream("POST", f"{BASE_URL}/v1/chat/completions", json=payload2) as resp:
                 self.assertEqual(resp.status_code, 200)
                 async for line in resp.aiter_lines():
@@ -184,7 +187,7 @@ class E2ETest(unittest.IsolatedAsyncioTestCase):
         collected_text = []
         stop_reason = None
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
             async with client.stream("POST", f"{BASE_URL}/v1/messages", json=payload) as resp:
                 self.assertEqual(resp.status_code, 200)
                 async for line in resp.aiter_lines():
